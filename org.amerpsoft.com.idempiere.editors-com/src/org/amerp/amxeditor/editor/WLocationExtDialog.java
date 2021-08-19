@@ -30,6 +30,7 @@ import org.adempiere.webui.component.Row;
 import org.adempiere.webui.component.Rows;
 import org.adempiere.webui.component.Textbox;
 import org.adempiere.webui.component.Window;
+import org.adempiere.webui.editor.WTableDirEditor;
 import org.adempiere.webui.theme.ThemeManager;
 import org.adempiere.webui.util.ZKUpdateUtil;
 import org.adempiere.webui.window.*;
@@ -85,7 +86,7 @@ public class WLocationExtDialog extends Window implements EventListener<Event>
 	private Textbox txtAddress2;
 	private Textbox txtAddress3;
 	private Textbox txtAddress4;
-	private WAutoCompleterCity txtCity;
+	private WTableDirEditor fCity;
 	private Textbox txtPostal;
 	private Textbox txtPostalAdd;
 	private Listbox lstRegion;
@@ -159,7 +160,12 @@ public class WLocationExtDialog extends Window implements EventListener<Event>
 		Env.setContext(Env.getCtx(), m_WindowNo, Env.TAB_INFO, "C_Region_ID", null);
 		Env.setContext(Env.getCtx(), m_WindowNo, Env.TAB_INFO, "C_Country_ID", null);
 		//
-		initComponents();
+		try {
+			initComponents();
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		init();
 		//      Current Country
 		for (MCountryExt country: MCountryExt.getCountries(Env.getCtx()))
@@ -234,9 +240,10 @@ public class WLocationExtDialog extends Window implements EventListener<Event>
 	/**
 	 * initComponents()
 	 * Set Form's Components associated with their fields on c_location thru MLocationExt 
+	 * @throws Exception 
 	 *
 	 */
-	private void initComponents()
+	private void initComponents() throws Exception
 	{
 		lblAddress1     = new Label(Msg.getElement(Env.getCtx(), "Address1"));
 		lblAddress1.setStyle(LABEL_STYLE);
@@ -277,12 +284,10 @@ public class WLocationExtDialog extends Window implements EventListener<Event>
 		txtAddress4.setMaxlength(MLocationExt.getFieldLength(MLocationExt.COLUMNNAME_Address4));
 
 		//autocomplete City
-		txtCity = new WAutoCompleterCity(m_WindowNo);
-		txtCity.setCols(20);
-		txtCity.setMaxlength(MLocationExt.getFieldLength(MLocationExt.COLUMNNAME_City));
-		txtCity.setAutodrop(true);
-		txtCity.setAutocomplete(true);
-		txtCity.addEventListener(Events.ON_CHANGING, this);
+		MLookup lookupCity =MLookupFactory.get(Env.getCtx(), m_WindowNo, 0, DisplayType.TableDir, Env.getLanguage(Env.getCtx()),
+				"C_City_ID",0,false,"C_City.isActive='Y' and C_City.C_Region_ID =@C_Region_ID@");
+		fCity = new WTableDirEditor("C_City_ID", false,false,true, lookupCity);
+		fCity.getComponent().setWidth("100%");
 		//txtCity
 
 		txtPostal = new Textbox();
@@ -396,9 +401,9 @@ public class WLocationExtDialog extends Window implements EventListener<Event>
 
 		Row pnlCity     = new Row();
 		pnlCity.appendChild(lblCity.rightAlign());
-		pnlCity.appendChild(txtCity);
+		pnlCity.appendChild(fCity.getComponent());
 		//txtCity.setHflex("1");
-		ZKUpdateUtil.setHflex(txtCity, "1");
+		ZKUpdateUtil.setHflex(fCity.getComponent(), "1");
 		
 		Row pnlMunicipality     = new Row();
 		pnlMunicipality.appendChild(lblMunicipality.rightAlign());
@@ -508,7 +513,6 @@ public class WLocationExtDialog extends Window implements EventListener<Event>
 			row = new Row();
 			rows.appendChild(row);
 			row.appendCellChild(txtResult, 2);
-			//txtResult.setHflex("1");
 			ZKUpdateUtil.setHflex(txtResult, "1");
 			txtResult.setText(m_location.getResult());
 			
@@ -612,14 +616,14 @@ public class WLocationExtDialog extends Window implements EventListener<Event>
 		if (country.isHasRegion() && m_location.getC_Region_ID() > 0)
 		{
 			Env.setContext(Env.getCtx(), m_WindowNo, Env.TAB_INFO, "C_Region_ID", String.valueOf(m_location.getC_Region_ID()));
+			Env.setContext(Env.getCtx(), m_WindowNo, "C_Region_ID", String.valueOf(m_location.getC_Region_ID()));
 		} else {
 			Env.setContext(Env.getCtx(), m_WindowNo, Env.TAB_INFO, "C_Region_ID", "0");
 		}
 		// log.warning("....C_Country_ID"+String.valueOf(country.get_ID()));
 		Env.setContext(Env.getCtx(), m_WindowNo, Env.TAB_INFO, "C_Country_ID", String.valueOf(country.get_ID()));
 		
-		// City Filllist
-		txtCity.fillList();
+		fCity.actionRefresh();
 
 		// actualiza cuando cambia la region	
 		if (m_location.getC_Region_ID() != s_oldRegion_ID)
@@ -705,7 +709,7 @@ public class WLocationExtDialog extends Window implements EventListener<Event>
 				addComponents((Row)txtAddress4.getParent());
 				isAddress4Mandatory = s.endsWith("!");
 			} else if (s.startsWith("C")) {
-				addComponents((Row)txtCity.getParent());
+				addComponents((Row)fCity.getComponent().getParent());
 				isCityMandatory = s.endsWith("!");
 			} else if (s.startsWith("MU") && m_location.getCountryExt().isHasRegion() && m_location.getCountryExt().isHasMunicipality()) {
 				addComponents((Row)lstMunicipality.getParent());
@@ -738,7 +742,7 @@ public class WLocationExtDialog extends Window implements EventListener<Event>
 			txtAddress2.setText(m_location.getAddress2());
 			txtAddress3.setText(m_location.getAddress3());
 			txtAddress4.setText(m_location.getAddress4());
-			txtCity.setText(m_location.getCity());
+			fCity.setValue(m_location.getC_City_ID());
 			txtPostal.setText(m_location.getPostal());
 			txtPostalAdd.setText(m_location.getPostal_Add());
 			if (m_location.getCountryExt().isHasRegion())
@@ -874,9 +878,13 @@ public class WLocationExtDialog extends Window implements EventListener<Event>
 			inOKAction = true;
 			
 			if (m_location.getCountryExt().isHasRegion() && lstRegion.getSelectedItem() == null) {
-				if (txtCity.getC_Region_ID() > 0 && txtCity.getC_Region_ID() != m_location.getC_Region_ID()) {
-					m_location.setRegion(MRegionExt.get(Env.getCtx(), txtCity.getC_Region_ID()));
-					setRegion();
+				int C_City_ID = fCity.getValue()==null?0:(int)fCity.getValue();
+				if (C_City_ID>0) {
+					MCity city = new MCity(Env.getCtx(), C_City_ID, null);
+					if (city.getC_Region_ID() > 0 && city.getC_Region_ID() != m_location.getC_Region_ID()) {
+						m_location.setRegion(MRegionExt.get(Env.getCtx(), city.getC_Region_ID()));
+						setRegion();
+					}
 				}
 			}
 			
@@ -957,9 +965,13 @@ public class WLocationExtDialog extends Window implements EventListener<Event>
 			inOKAction = true;
 			
 			if (m_location.getCountryExt().isHasRegion() && lstRegion.getSelectedItem() == null) {
-				if (txtCity.getC_Region_ID() > 0 && txtCity.getC_Region_ID() != m_location.getC_Region_ID()) {
-					m_location.setRegion(MRegionExt.get(Env.getCtx(), txtCity.getC_Region_ID()));
-					setRegion();
+				int C_City_ID = fCity.getValue()==null?0:(int)fCity.getValue();
+				if (C_City_ID>0) {
+					MCity city = new MCity(Env.getCtx(), C_City_ID, null);
+					if (city.getC_Region_ID() > 0 && city.getC_Region_ID() != m_location.getC_Region_ID()) {
+						m_location.setRegion(MRegionExt.get(Env.getCtx(), city.getC_Region_ID()));
+						setRegion();
+					}
 				}
 			}
 			// VALIDATION MESSAGE USING FDialog Class
@@ -976,13 +988,18 @@ public class WLocationExtDialog extends Window implements EventListener<Event>
 				return;
 			}
 			
+			int C_City_ID = fCity.getValue()==null?0:(int)fCity.getValue();
+			
 			MLocationExt m_location = new MLocationExt(Env.getCtx(), 0, null);
 			m_location.setAddress1(txtAddress1.getValue());
 			m_location.setAddress2(txtAddress2.getValue());
 			m_location.setAddress3(txtAddress3.getValue());
 			m_location.setAddress4(txtAddress4.getValue());
-			m_location.setC_City_ID(txtCity.getC_City_ID()); 
-			m_location.setCity(txtCity.getValue());
+			if (C_City_ID>0) {
+				m_location.setC_City_ID(C_City_ID); 
+				m_location.setCity(fCity.getDisplay());
+			}
+			
 			m_location.setPostal(txtPostal.getValue());
 			//  Country/Region
 			MCountryExt country = (MCountryExt) lstCountry.getSelectedItem().getValue();
@@ -1101,6 +1118,8 @@ public class WLocationExtDialog extends Window implements EventListener<Event>
 
 	// LCO - address 1, region and city required
 	private String validate_OK() {
+		
+		int C_City_ID = fCity.getValue()==null?0:(int)fCity.getValue();
 		String fields = "";
 		if (isAddress1Mandatory && txtAddress1.getText().trim().length() == 0) {
 			fields = fields + " " + "@Address1@, ";
@@ -1114,7 +1133,7 @@ public class WLocationExtDialog extends Window implements EventListener<Event>
 		if (isAddress4Mandatory && txtAddress4.getText().trim().length() == 0) {
 			fields = fields + " " + "@Address4@, ";
 		}
-		if (isCityMandatory && txtCity.getValue().trim().length() == 0) {
+		if (isCityMandatory && C_City_ID == 0) {
 			fields = fields + " " + "@City@, ";
 		}
 		if (isParishMandatory && lstParish.getName().trim().length() == 0) {
@@ -1145,13 +1164,16 @@ public class WLocationExtDialog extends Window implements EventListener<Event>
 	private boolean action_OK()
 	{
 		Trx trx = Trx.get(Trx.createTrxName("WLocationExtDialog"), true);
+		int C_City_ID = fCity.getValue()==null?0:(int)fCity.getValue();
+		if (C_City_ID>0) {		
+			m_location.setC_City_ID(C_City_ID); 
+			m_location.setCity(fCity.getDisplay());
+		}
 		m_location.set_TrxName(trx.getTrxName());
 		m_location.setAddress1(txtAddress1.getValue());
 		m_location.setAddress2(txtAddress2.getValue());
 		m_location.setAddress3(txtAddress3.getValue());
 		m_location.setAddress4(txtAddress4.getValue());
-		m_location.setC_City_ID(txtCity.getC_City_ID()); 
-		m_location.setCity(txtCity.getValue());
 		m_location.setPostal(txtPostal.getValue());
 		m_location.setPostal_Add(txtPostalAdd.getValue());
 		//
@@ -1248,6 +1270,9 @@ public class WLocationExtDialog extends Window implements EventListener<Event>
 	/** returns a string that contains all fields of current form */
 	String getFullAdress()
 	{
+		
+		
+		
 		MRegionExt region = null;
 		MMunicipality municipality = null;
 		MParish parish = null;
@@ -1263,7 +1288,11 @@ public class WLocationExtDialog extends Window implements EventListener<Event>
 		String address = "";
 		address = address + (txtAddress1.getText() != null ? txtAddress1.getText() + ", " : "");
 		address = address + (txtAddress2.getText() != null ? txtAddress2.getText() + ", " : "");
-		address = address + (txtCity.getText() != null ? txtCity.getText() + ", " : "");
+		int C_City_ID = fCity.getValue()==null?0:(int)fCity.getValue();
+		if (C_City_ID>0) {
+			address = address + (C_City_ID>0  ? fCity.getDisplay() + ", " : "");
+		}
+		
 		if (parish != null)
 			address = address + (parish.getName() != null ? parish.getName() + ", " : "");
 		if (municipality != null)
