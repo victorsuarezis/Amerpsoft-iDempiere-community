@@ -31,6 +31,8 @@ import org.adempiere.webui.component.Rows;
 import org.adempiere.webui.component.Textbox;
 import org.adempiere.webui.component.Window;
 import org.adempiere.webui.editor.WTableDirEditor;
+import org.adempiere.webui.event.ValueChangeEvent;
+import org.adempiere.webui.event.ValueChangeListener;
 import org.adempiere.webui.theme.ThemeManager;
 import org.adempiere.webui.util.ZKUpdateUtil;
 import org.adempiere.webui.window.*;
@@ -57,7 +59,7 @@ import org.zkoss.zul.Vbox;
  * @author luisamesty
  *
  */
-public class WLocationExtDialog extends Window implements EventListener<Event>
+public class WLocationExtDialog extends Window implements EventListener<Event>, ValueChangeListener
 {
 	/**
 	 * 
@@ -556,6 +558,8 @@ public class WLocationExtDialog extends Window implements EventListener<Event>
 		southPane.appendChild(confirmPanel);
 		
 		addEventListener("onSaveError", this);
+		
+		fCity.addValueChangeListener(this);
 	}
 	
 	/**
@@ -630,6 +634,7 @@ public class WLocationExtDialog extends Window implements EventListener<Event>
 		{	
 			lstMunicipality.getChildren().clear();
 			lstMunicipality.appendItem("", null);
+			txtPostal.setValue(null);
 			
 			lstParish.getChildren().clear();
 			lstParish.appendItem("", null);
@@ -656,6 +661,7 @@ public class WLocationExtDialog extends Window implements EventListener<Event>
 			// Clear Parish
 //			setParish();
 			// log.warning("  Municipality_ID="+m_location.getC_Municipality_ID()+" C_Region_ID="+m_location.getC_Region_ID());
+			txtPostal.setValue(null);
 			lstParish.getChildren().clear();
 			lstParish.appendItem("", null); 
 			for (MParish parish : MParish.getSQLParishs(Env.getCtx(),  m_location.getC_Municipality_ID(),m_location.getC_Region_ID()))
@@ -756,6 +762,7 @@ public class WLocationExtDialog extends Window implements EventListener<Event>
 				setRegion();                
 			}
 			setCountry();
+			txtPostal.setValue(null);
 		}
 //log.warning("m_location.initLocation  END..City:"+m_location.getC_City_ID()+"-"+m_location.getCity()+
 //				"..Country:"+m_location.getC_Country_ID()+"..Region:"+m_location.getC_Region_ID()+
@@ -1302,6 +1309,17 @@ public class WLocationExtDialog extends Window implements EventListener<Event>
 		address = address + (c.getName() != null ? c.getName() : "");
 		//return address.replace(" ", "+");
 		return address;
+	}
+
+	@Override
+	public void valueChange(ValueChangeEvent evt) {
+		 if (evt.getSource().equals(fCity)){
+			 if (evt.getNewValue()!=null) {
+				 String postal = DB.getSQLValueStringEx(null, "Select postal from C_city where C_city_ID="+evt.getNewValue());
+				 txtPostal.setValue(postal);
+			 }
+		 }
+		
 	}	
 
 }
