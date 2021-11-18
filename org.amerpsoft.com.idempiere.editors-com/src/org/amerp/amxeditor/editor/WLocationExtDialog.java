@@ -762,7 +762,7 @@ public class WLocationExtDialog extends Window implements EventListener<Event>, 
 				setRegion();                
 			}
 			setCountry();
-			txtPostal.setValue(null);
+//			txtPostal.setValue(null);
 		}
 //log.warning("m_location.initLocation  END..City:"+m_location.getC_City_ID()+"-"+m_location.getCity()+
 //				"..Country:"+m_location.getC_Country_ID()+"..Region:"+m_location.getC_Region_ID()+
@@ -1176,6 +1176,8 @@ public class WLocationExtDialog extends Window implements EventListener<Event>, 
 			m_location.setC_City_ID(C_City_ID); 
 			m_location.setCity(fCity.getDisplay());
 		}
+		
+		m_location.get_ID();
 		m_location.set_TrxName(trx.getTrxName());
 		m_location.setAddress1(txtAddress1.getValue());
 		m_location.setAddress2(txtAddress2.getValue());
